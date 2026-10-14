@@ -35,6 +35,12 @@ export function providerSemantics(provider: string | null): {
 const SEMANTICS_TABLE: Array<[RegExp, UsageSemantics]> = [
   [/claude|anthropic/i, { inputIncludesCached: false }],
   [/codex|openai|gpt/i, { inputIncludesCached: true }],
+  // Factory Droid (verified 2026-10-08 from two same-session turns' ledger
+  // deltas of ~/.factory/sessions tokenUsage: turn 2 reported input 387,
+  // cached 10539 — fresh input separate from cache reads, Anthropic-style).
+  // Applies to the ACP transport (`droid exec --output-format acp-daemon`);
+  // tokenUsage keeps separate inputTokens / cacheReadTokens fields.
+  [/factory-droid/i, { inputIncludesCached: false }],
 ];
 
 /** Looks up verified usage semantics by provider, falling back to model. */

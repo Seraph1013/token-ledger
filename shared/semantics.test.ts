@@ -33,3 +33,12 @@ test('cache writes are separate from fresh input only for inclusive providers', 
   assert.equal(freshInput(usageSemantics('claude', null), 10, 60, 30), 10);
   assert.equal(freshInput(null, 100, 60, 30), 100);
 });
+
+test('factory-droid reports fresh input separate from cache reads (verified 2026-10-08)', () => {
+  // Two same-session ACP turns of droid exec: turn 2 delta was input 387,
+  // cached 10539 — Anthropic-style, cache reads never inside input.
+  assert.deepEqual(usageSemantics('factory-droid', 'gpt-6.1-sol'), { inputIncludesCached: false });
+  const droid = usageSemantics('factory-droid', null);
+  assert.equal(freshInput(droid, 387, 10539, 0), 387);
+  assert.equal(freshInput(droid, 10542, null, null), 10542);
+});

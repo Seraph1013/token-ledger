@@ -16,6 +16,7 @@ import {
 } from "./store.ts";
 
 import { readModel, EMPTY_SUMMARY } from "./read-model.ts";
+import { reconcileDroidRecord } from "./droid-reconcile.ts";
 import { Catalog } from "./catalog.ts";
 import { TimelinePublisher } from "./timeline.ts";
 import { TimelineSubscriptions } from './subscriptions.ts';
@@ -49,6 +50,20 @@ async function drainRecords(): Promise<void> {
   // Write-ahead: a crash between append and checkpoint can safely retry the
   // same immutable record ID. Failed appends remain pending for the next drain.
   const batch = [...pendingRecords.values()];
+  // Factory Droid's ACP transport reports no usage (probed 2026-10-08:
+  // prompt result is { stopReason } only, no usage_update), so closed
+  // factory-droid turns are reconciled here against the session's cumulative
+  // tokenUsage in ~/.factory/sessions before they are journaled or appended.
+  // The baseline lives in state.lastObservation, which no other path
+  // populates for this provider. Enrichment must precede the first
+  // saveJournal below so the checkpointed baseline always matches the
+  // checkpointed records (a crash replays the same delta).
+  for (const record of batch) {
+    if (record.provider !== "factory-droid") continue;
+    const state = agents.get(record.agentId);
+    if (!state) continue;
+    state.lastObservation = reconcileDroidRecord(record, state.lastObservation);
+  }
   await saveJournal(agents, pendingRecords);
   for (const record of batch) {
     await appendRecord(record);
